@@ -2,6 +2,6 @@
 2025 Summer Undergraduate Research Fellowship (SURF)
 
 ## Developers
-PI: Prof. Wei Cai \\
-Mentor: Myung Chul Kim \\
+PI: Prof. Wei Cai  
+Mentor: Myung Chul Kim  
 Mentee: Saúl Eduardo Pérez Herrera
