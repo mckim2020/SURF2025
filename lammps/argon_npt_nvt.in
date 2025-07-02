@@ -1,0 +1,74 @@
+# ---------- Initialize Simulation ----------------------------------------------
+units          metal
+dimension 3
+boundary p p p
+atom_style     atomic
+lattice  fcc 5.711
+# Define region
+region box block 0 4 0 4 0 4
+#-------------------Create Atoms  ----------------------------------------------
+create_box      1 box
+create_atoms    1 box
+
+#Define parameters
+mass 1 39.9
+
+neighbor 2.0 bin
+neigh_modify every 2 delay 10 check yes
+velocity all create 20.0 41405 dist gaussian mom yes rot yes
+pair_style lj/cut 8.5
+pair_coeff 1 1 0.0103 3.4 8.5
+
+
+# ---------- Run Minimization ---------------------
+timestep 0.01078
+thermo_style multi
+run 0
+#compute 1 all pressure thermo_temp
+variable totpres  equal press
+
+#run NVT#
+
+compute peratom all stress/atom NULL
+compute p all reduce sum c_peratom[1] c_peratom[2] c_peratom[3]
+variable press equal -(c_p[1]+c_p[2]+c_p[3])/(3*vol)
+variable factor equal 1+((press)/300000)
+thermo_style custom time temp etotal vol press v_press v_factor
+
+
+
+
+
+
+
+thermo 10
+
+fix 1 all nvt temp 20.0 20.0 0.02 tchain 5 tloop 5
+run 200
+unfix 1
+
+#fix 3 all nve
+
+label loop
+variable n loop 10000
+        fix 1 all nvt temp 20.0 20.0 0.02 tchain 10 tloop 10
+        run 1000
+        unfix 1
+
+        #fix 2 all deform 1 x scale $(v_factor:%.6f) y scale $(v_factor:%.6f) z scale $(v_factor:%.6f) units box
+        #run 10
+        #unfix 2
+
+        change_box all x scale $(v_factor:%.6f) y scale $(v_factor:%.6f) z scale $(v_factor:%.6f) remap
+        #unfix 1
+
+        next n
+        #if "$(n>10000)" then "jump SELF break"
+        if "$(abs(press)<1)" then "jump SELF break"
+        jump SELF loop
+label break
+
+
+
+#fix 1 all nvt temp 20.0 20.0 0.02 tchain 5 tloop 5
+#run 200
