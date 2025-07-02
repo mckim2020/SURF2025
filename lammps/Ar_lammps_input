@@ -9,7 +9,7 @@ atom_style	atomic
 lattice		fcc 4.8
 
 # create geometry
-region box block 0 4 0 4 0 4 units box
+region box block 0 4 0 4 0 4 #units box
 
 create_box      1 box
 create_atoms	1  box  
