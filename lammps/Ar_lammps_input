@@ -1,0 +1,50 @@
+units metal 
+
+dimension	3
+boundary	p p p
+
+atom_style	atomic
+
+# Create lattice
+lattice		fcc 4.8
+
+# create geometry
+region box block 0 57.4 0 57.4 0 57.4 units box
+
+create_box 1 box
+create_atoms	1  box  
+
+# LJ potentials
+mass		1 39.948002
+velocity all create 150.0 3213112 mom yes rot yes dist gaussian
+
+pair_style lj/cut 10.0
+pair_coeff 1 1 0.0103 3.405                                     #Epsilon, sigma, cutoff
+
+#Neighbors
+neighbor 2.0 bin                                                # Is 2.0 fine?
+neigh_modify delay 25 check yes                                 # Is it important to put delay? 
+
+#NPT 
+thermo 10000
+timestep 0.001
+fix 1 all npt temp 1 100000 100000 tchain ____ tloop ____ iso _____  
+run 100000
+unfix 1
+
+#NVT 
+fix 1 all nvt temp 1 100000 100000 tchain ____ tloop ____
+run 100000
+
+#dump
+dump 1 all custom xyz id type x y z vx vy vz fx fy fz 
+thermo 10000
+thermo_style custom step temp pe ke etotal press
+reset_timestep 0
+
+#NVT ensemble 2 (temperature ramp
+unfix 1                                                           #What is exactly unfix?
+fix 1 all nvt temp 1 100000 100000 tchain ____ tloop ____ iso _____  
+run 100000
+
+
