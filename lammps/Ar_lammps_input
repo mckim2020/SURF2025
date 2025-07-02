@@ -19,7 +19,7 @@ mass		1 39.948002
 velocity all create 10 3213112 mom yes rot yes dist gaussian
 
 pair_style lj/cut 8.5125
-pair_coeff 1 1 0.0103 3.405  #Epsilon, sigma
+pair_coeff 1 1 0.0103 3.405  
 
 #Neighbors
 neighbor 2.0 bin                                               
@@ -28,17 +28,21 @@ neigh_modify delay 25 check yes
 #NPT 
 thermo 200
 timestep 0.01078
-fix 1 all npt temp 10 105 0.02 tchain 5 tloop 5 iso 137.5 137.5 0.2    
-run 100000   ###
+fix 1 all npt temp 10 10 0.02 tchain 5 tloop 5 iso 137.5 137.5 0.2       
+run 200000   ###
 unfix 1
 
 #NVT 
-fix 1 all nvt temp 10 105 0.02 tchain 5 tloop 5
-run 100000    ### 
+fix 1 all nvt temp 10 10 0.02 tchain 5 tloop 5                           
+run 200000    ### 
 unfix 1                                                         
 
 #dump
-dump 1 all custom xyz id type x y z vx vy vz fx fy fz 
+compute pe_atom all pe/atom
+compute ke_atom all ke/atom
+variable etot atom c_pe_atom+c_ke_atom
+dump 1 all custom 100 xyz id type x y z vx vy vz fx fy fz v_etot
+
 thermo 200
 thermo_style custom step temp pe ke etotal press
 reset_timestep 0
