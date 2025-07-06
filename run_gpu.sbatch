@@ -7,4 +7,4 @@
 
 
 
-python 
+$LAMMPS_GPU/build/lmp_gpu_serial -sf gpu -pk gpu 1 -in create_dataset.in -log none
