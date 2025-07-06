@@ -67,8 +67,8 @@ unfix 1
 # Setup dumps
 compute pe_atom all pe/atom
 compute ke_atom all ke/atom
-dump 1 all custom ${dump_freq} dump.lj.* id type x y z vx vy vz fx fy fz c_pe_atom
-dump 2 all custom ${dump_freq} dump.lj id type xu yu zu vx vy vz c_pe_atom
+dump 1 all custom ${dump_freq} data/dumps/dump.lj.* id type x y z vx vy vz fx fy fz c_pe_atom
+dump 2 all custom ${dump_freq} data/dumps/dump.lj id type xu yu zu vx vy vz c_pe_atom
 
 # Setup energy output
 thermo ${log_freq}
@@ -76,7 +76,7 @@ reset_timestep 0
 thermo_style custom step pe
 variable sstep equal step
 variable ppt equal pe
-fix extra all print ${dump_freq} "${sstep} ${ppt}" file etotal.txt screen no
+fix extra all print ${dump_freq} "${sstep} ${ppt}" file data/dumps/etotal.txt screen no
 
 # Final NVT run with temperature ramp
 fix 1 all nvt temp ${temp_init} ${temp_final} ${nvt_thermo_freq} tchain ${num_chains} tloop ${num_mtk}
