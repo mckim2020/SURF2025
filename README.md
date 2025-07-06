@@ -9,15 +9,21 @@
 python create_dataset.py --mode write
 ```
 
+LAMMPS input script ```create_dataset.in``` will be created in the current directory.
+
 ### Run LAMMPS
 ```
 sbatch run_gpu.sbatch
 ```
 
+After running lammps, ```dump.lj.*``` format files will be saved into ```data/dumps``` directory.
+
 ### Process LAMMPS Output File
 ```
 python create_dataset.py --mode create
 ```
+
+This will create training files such as ```argon_data.pckl.gzip``` in the current directory.
 
 
 
