@@ -154,7 +154,7 @@ def create_lammps_data_pkl(element, dump_freq, run_step, dump_dir='./data/dumps'
     all_atoms, all_forces, all_energies = [], [], []
 
     # Read dumps and collect data
-    for i,dump_file in enumerate(tqdm.tqdm(all_dumps)):
+    for i, dump_file in enumerate(tqdm.tqdm(all_dumps)):
         atoms = read(dump_file, 0, format='lammps-dump-text')
         symbls = [element for i in range(len(atoms))]
         forces = atoms.get_forces()
@@ -175,6 +175,64 @@ def create_lammps_data_pkl(element, dump_freq, run_step, dump_dir='./data/dumps'
         if all_energies_mae.mean() < 1e-6: print(f'\033[92mPASS\033[0m: Energy values are correct.')
         else: print(f'\033[91mFAIL\033[0m: Energy values are NOT correct.')
 
+    # Save to pandas DataFrame
     data = {'energy': all_energies, 'forces': all_forces, 'ase_atoms': all_atoms, 'energy_corrected': all_energies}
     df = pd.DataFrame(data)
     df.to_pickle(pd_data_dir, compression='gzip', protocol=4)
+
+
+def create_lammps_data_raw(element, dump_freq, run_step, dump_dir='./data/dumps', pd_data_dir='argon_data.pckl.gzip', verbose=False):
+    """
+    Note: Sample script for converting Lammps dump sequence data (dump.lj.*) to the .pkl format readable by ACE or PACE
+    """
+    from ase import Atoms
+    from ase.io import read, write
+    from ase.db import connect
+
+    # All energies reference
+    all_energies_ref = np.genfromtxt(os.path.join(dump_dir, 'etotal.txt'), skip_header=1)[:,1]
+
+    # All dumps
+    all_dumps = [os.path.join(dump_dir, f'dump.lj.{dump_freq * i}') for i in range(run_step // dump_freq + 1)]
+    all_atoms, all_forces, all_energies = [], [], []
+    file_nos = np.linspace(0, 2000000, 401, dtype=np.int32)
+
+    # Read dumps and collect data
+    for i, dump_file in enumerate(tqdm.tqdm(all_dumps)):
+        atoms = read(dump_file, 0, format='lammps-dump-text')
+
+        if i == 0:
+            N_at = len(atoms)
+            all_forces = np.zeros((len(file_nos),3*N_at))
+            all_pos = np.zeros((len(file_nos),3*N_at))
+            all_boxs = np.zeros((len(file_nos),9))
+            at_type = np.zeros(N_at)
+
+        forces = atoms.get_forces()
+        pos = atoms.get_positions()
+        cell = np.array(atoms.get_cell())
+        all_forces[i,:] = forces.reshape(-1,)
+        all_pos[i,:] = pos.reshape(-1,)
+        all_boxs[i,:] = cell.reshape(-1,)
+
+        energy = np.sum(atoms.arrays['c_pe_atom'])
+        all_energies.append(energy)
+    
+    # Test reference energies
+    if verbose:
+        all_energies_mae = np.abs(np.array(all_energies) - all_energies_ref)
+        all_energies_rmse = np.sqrt(np.mean(all_energies_mae**2))
+        print(f'Error in mean absolute energy: {all_energies_mae.mean():.2e}')
+        print(f'Error in root mean square energy: {all_energies_rmse:.2e}')
+        if all_energies_mae.mean() < 1e-6: print(f'\033[92mPASS\033[0m: Energy values are correct.')
+        else: print(f'\033[91mFAIL\033[0m: Energy values are NOT correct.')
+
+    # Save to raw DataFrame
+    np.savetxt('type.raw',at_type,fmt='%d')
+    np.savetxt('force.raw',all_forces,fmt='%.8f')
+    np.savetxt('box.raw',all_boxs,fmt='%.8f')
+    np.savetxt('coord.raw',all_pos,fmt='%.8f')
+    np.savetxt('energy.raw',energy,fmt='%.8f')
+    fid = open('type_map.raw','w')
+    fid.write(element)
+    fid.close()
