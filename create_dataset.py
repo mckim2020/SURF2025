@@ -1,5 +1,6 @@
 import numpy as np, os, sys, argparse
-from python.utils import write_lammps_input_parameterized, create_lammps_data_pkl
+from python.utils import write_lammps_input_parameterized, \
+                         create_lammps_data_pkl, create_lammps_data_raw
 
 
 
