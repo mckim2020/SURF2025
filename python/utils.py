@@ -350,7 +350,7 @@ def visualize_lammps_data():
         
     plt.legend()
     plt.grid()
-    plt.savefig('energy_distribution.png')
+    plt.savefig('./data/figs/energy_distribution.png')
     plt.close()
 
     ####Histogram of velocities
@@ -382,7 +382,7 @@ def visualize_lammps_data():
     ax.set_zlabel('Frequency')
     ax.set_title('Velocities Over Time')
 
-    plt.savefig('velocities_over_time.png')
+    plt.savefig('./data/figs/velocities_over_time.png')
     plt.close()
 
 
