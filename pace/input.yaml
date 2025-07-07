@@ -5,7 +5,7 @@ seed: 2025  # random seed
 ## Metadata section
 #################################################################
 metadata:
-  origin: "Demo Argon Potential"
+  origin: "Example Argon Potential"
 
 #################################################################
 ## Potential definition section
