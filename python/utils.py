@@ -239,6 +239,124 @@ def create_lammps_data_raw(element, dump_freq, run_step, dump_dir='./data/dumps'
     fid.close()
 
 
+def json_to_ace_compatible_dataframe(json_file_path, output_path):
+    """
+    Convert JSON to DataFrame compatible with ACE fitting requirements
+        """
+    import json
+    import pandas as pd
+    from ase import Atoms
+    import numpy as np
+
+    # Read JSON data
+    with open(json_file_path, 'r') as f:
+        json_data = json.load(f)
+    
+    all_energies = []
+    all_forces = []
+    all_atoms = []
+    all_energies_corrected = []
+    
+    for i, record in enumerate(json_data):
+        try:
+            # Extract basic data
+            energy = record.get('energy')
+            forces = record.get('forces')
+            energy_corrected = record.get('energy_corrected')
+            num_atoms = record.get('NUMBER_OF_ATOMS')
+            
+            # Validate and fix forces shape
+            if forces is not None and num_atoms is not None:
+                forces_array = np.array(forces)
+                
+                # Check if forces shape is correct
+                expected_shape = (num_atoms, 3)
+                if forces_array.shape != expected_shape:
+                    print(f"Record {i}: Forces shape {forces_array.shape} != expected {expected_shape}")
+                    
+                    # Try to reshape if possible
+                    if forces_array.size == num_atoms * 3:
+                        forces_array = forces_array.reshape(expected_shape)
+                        print(f"  -> Reshaped to {forces_array.shape}")
+                    else:
+                        print(f"  -> Cannot reshape, skipping record")
+                        continue
+                
+                # Ensure it's the right data type
+                forces_array = forces_array.astype(np.float64)
+            else:
+                print(f"Record {i}: Missing forces or number_of_atoms, skipping")
+                continue
+            
+            # Create ASE Atoms object
+            coordinates = record.get('_COORDINATES')
+            symbols = record.get('_OCCUPATION')
+            cell = record.get('cell')
+            pbc = record.get('pbc', False)
+            
+            if coordinates and symbols and len(symbols) == num_atoms:
+                if record.get('COORDINATES_TYPE') == 'relative' and cell:
+                    coords = np.array(coordinates)
+                    cell_array = np.array(cell)
+                    abs_coords = coords @ cell_array
+                    atoms = Atoms(symbols=symbols, positions=abs_coords, cell=cell, pbc=pbc)
+                else:
+                    atoms = Atoms(symbols=symbols, positions=coordinates, cell=cell, pbc=pbc)
+                
+                # Verify atoms object has correct number of atoms
+                if len(atoms) != num_atoms:
+                    print(f"Record {i}: Atom count mismatch {len(atoms)} != {num_atoms}, skipping")
+                    continue
+                
+                # Add metadata
+                atoms.info['energy'] = energy
+                atoms.info['energy_corrected'] = energy_corrected
+                
+                # Store data
+                all_energies.append(energy)
+                all_forces.append(forces_array)
+                all_atoms.append(atoms)
+                all_energies_corrected.append(energy_corrected)
+                
+            else:
+                print(f"Record {i}: Invalid atom data, skipping")
+                continue
+                
+        except Exception as e:
+            print(f"Record {i}: Error processing - {e}, skipping")
+            continue
+    
+    # Create DataFrame
+    data = {
+        'energy': all_energies,
+        'forces': all_forces,
+        'ase_atoms': all_atoms,
+        'energy_corrected': all_energies_corrected
+    }
+    df = pd.DataFrame(data)
+    
+    # Validate the final DataFrame
+    print("\nValidating DataFrame for ACE compatibility...")
+    for idx, row in df.iterrows():
+        forces_shape = np.array(row['forces']).shape
+        num_atoms = len(row['ase_atoms'])
+        if forces_shape != (num_atoms, 3):
+            print(f"Row {idx}: Forces shape {forces_shape} != expected ({num_atoms}, 3)")
+        else:
+            print(f"Row {idx}: ✓ Forces shape correct {forces_shape}")
+    
+    # Save using your original method
+    df.to_pickle(output_path, compression='gzip', protocol=4)
+    print(f"\nSaved DataFrame with {len(df)} records to {output_path}")
+
+
+
+
+
+
+
+
+
 
 """ Visualization Utility Functions, Saúl Eduardo Pérez Herrera, July 2025 """
 def extract_data(filename):
