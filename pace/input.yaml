@@ -1,18 +1,18 @@
-cutoff: 8.5 # cutoff for neighbour list construction
-seed: 2025  # random seed
+cutoff: 7.0 # cutoff for neighbour list construction
+seed: 42  # random seed
 
 #################################################################
 ## Metadata section
 #################################################################
 metadata:
-  origin: "Example Argon Potential"
+  origin: "Automatically generated input"
 
 #################################################################
 ## Potential definition section
 #################################################################
 potential:
   deltaSplineBins: 0.001
-  elements: ['Ar']
+  elements: ['Cu']
 
   embeddings:
     ALL: {
@@ -25,7 +25,7 @@ potential:
     ALL: {
       radbase: SBessel,
       radparameters: [ 5.25 ],
-      rcut: 8.5,
+      rcut: 7.0,
       dcut: 0.01,
       NameOfCutoffFunction: cos,
     }
@@ -42,7 +42,7 @@ potential:
 ## Dataset specification section
 #################################################################
 data:
-  filename: argon_data.pckl.gzip       # force to read reference pickled dataframe from given file
+  filename: Cu_FHIaims-PBE-dataset.pckl.gzip       # force to read reference pickled dataframe from given file
   test_size: 0.05
   #  aug_factor: 1e-4 # common prefactor for weights of augmented structures
   # reference_energy: auto
