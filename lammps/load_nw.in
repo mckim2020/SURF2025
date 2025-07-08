@@ -1,0 +1,107 @@
+# load_nw.in
+# LAMMPS input file for loading nanowire
+# Extracted from create_dataset.in
+
+# Setup
+units metal
+boundary f f p
+atom_style atomic
+
+# Variables
+variable num_replicate_x equal 140
+variable num_replicate_y equal 140
+variable num_replicate_z equal 140
+variable cell_param equal 3.615
+variable center_x equal (xhi+xlo)/2.0
+variable center_y equal (yhi+ylo)/2.0
+variable box_size_x equal ${num_replicate_x}*${cell_param}
+variable box_size_y equal ${num_replicate_y}*${cell_param}
+variable box_size_z equal ${num_replicate_z}*${cell_param}
+variable radius equal 25.0
+variable mass equal 63.546
+variable temp_obj equal 300
+variable press_obj equal 1.01325
+variable random_seed equal 2025
+variable time_step equal 1e-4 # 0.1 fs
+variable skin equal 2.0
+variable log_freq equal 200
+variable nvt_thermo_freq equal 0.02
+variable num_chains equal 5
+variable num_mtk equal 5
+variable dump_freq equal 1000 # 1 ps
+variable num_step equal 20000 # 2 ps
+variable strain_increment equal 0.01 
+
+# Create lattice and atoms
+lattice fcc ${cell_param}
+region box block 0 ${num_replicate_x} 0 ${num_replicate_y} 0 ${num_replicate_z}
+create_box 1 box
+create_atoms 1 box
+
+# Create nanowire
+region cylinder_region cylinder z ${center_x} ${center_y} ${radius} EDGE EDGE units box
+group nanowire region cylinder_region
+group outside subtract all nanowire
+delete_atoms group outside
+
+# Assign mass
+mass 1 ${mass}
+
+# Define force field
+pair_style eam 
+pair_coeff 1 1 Cu_u3.eam
+
+# Neighbor settings
+neighbor ${skin} bin
+neigh_modify check yes
+
+# Thermodynamic output
+thermo ${log_freq}
+timestep ${time_step}
+
+
+
+# Write initial configuration
+write_data nw.init
+
+# Relax the configuration
+minimize 0 0 10000 100000
+
+# Write relaxed configuration
+write_data nw.relax
+
+
+
+
+# Set initial velocity
+velocity all create ${temp_obj} ${random_seed} dist gaussian mom yes rot yes
+
+# NVT ensemble (equilibration)
+reset_timestep 0
+fix 1 all nvt temp ${temp_obj} ${temp_obj} ${nvt_thermo_freq} tchain ${num_chains} tloop ${num_mtk}
+run ${num_step}
+unfix 1
+
+
+
+# Dump settings
+compute pe_atom all pe/atom
+compute ke_atom all ke/atom
+compute stress_atom all stress/atom NULL
+#dump 1 all custom ${dump_freq} nw.* id type x y z vx vy vz fx fy fz c_pe_atom
+dump 1 all custom ${dump_freq} nw.* id type x y z vx vy vz fx fy fz c_pe_atom c_stress_atom[1] c_stress_atom[2] c_stress_atom[3] c_stress_atom[4] c_stress_atom[5] c_stress_atom[6]
+
+# NVT ensemble (loading)
+reset_timestep 0
+fix 2 all nvt temp ${temp_obj} ${temp_obj} ${nvt_thermo_freq} tchain ${num_chains} tloop ${num_mtk}
+
+# Loading loop -- 1% increments
+label loader
+variable b loop 60
+variable low_lim equal 0.0
+variable upp_lim equal (1+0.01*$b)*${box_size_z}
+fix 4 all deform 1 z final ${low_lim} ${upp_lim} x volume y volume units box
+run ${num_step}
+next b
+jump SELF loader
+label break
