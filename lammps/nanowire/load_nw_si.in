@@ -65,13 +65,13 @@ timestep ${time_step}
 
 
 # Write initial configuration
-write_data nw.init
+write_data nw.si.init
 
 # Relax the configuration
 minimize 0 0 10000 100000
 
 # Write relaxed configuration
-write_data nw.relax
+write_data nw.si.relax
 
 
 
