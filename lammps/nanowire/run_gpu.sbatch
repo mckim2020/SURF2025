@@ -7,4 +7,4 @@
 
 
 
-$LAMMPS_GPU/build/lmp_gpu_serial -sf gpu -pk gpu 1 -in load_nw.in -log none
+$LAMMPS_GPU/build/lmp_gpu_serial -sf gpu -pk gpu 1 -in load_nw_si.in -log none
