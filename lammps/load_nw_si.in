@@ -1,0 +1,156 @@
+# load_nw.in
+# LAMMPS input file for loading nanowire
+# Extracted from create_dataset.in
+
+# Setup
+units metal
+boundary f f p
+atom_style atomic
+
+# Variables
+variable num_replicate_x equal 14
+variable num_replicate_y equal 14
+variable num_replicate_z equal 14
+variable cell_param equal 5.43
+variable center_x equal (xhi+xlo)/2.0
+variable center_y equal (yhi+ylo)/2.0
+variable box_size_x equal ${num_replicate_x}*${cell_param}
+variable box_size_y equal ${num_replicate_y}*${cell_param}
+variable box_size_z equal ${num_replicate_z}*${cell_param}
+variable radius equal 5.0
+variable mass equal 28.0855 
+variable temp_obj equal 300
+variable press_obj equal 1.01325
+variable random_seed equal 2025
+variable time_step equal 1e-4
+variable skin equal 2.0
+variable log_freq equal 200
+variable nvt_thermo_freq equal 0.02
+variable num_chains equal 5
+variable num_mtk equal 5
+variable dump_freq equal 1000
+variable num_step equal 20000
+variable strain_increment equal 0.01
+
+lattice diamond ${cell_param} 
+region box block 0 ${num_replicate_x} 0 ${num_replicate_y} 0 ${num_replicate_z}
+create_box 1 box
+create_atoms 1 box
+
+
+# Create nanowire
+region cylinder_region cylinder z ${center_x} ${center_y} ${radius} EDGE EDGE units box
+group nanowire region cylinder_region
+group outside subtract all nanowire
+delete_atoms group outside
+
+# Assign mass
+mass 1 ${mass}
+
+# Define force field
+pair_style sw
+pair_coeff * * Si.sw Si
+
+
+# Neighbor settings
+neighbor ${skin} bin
+neigh_modify one 10000
+
+# Thermodynamic output
+thermo ${log_freq}
+timestep ${time_step}
+thermo_style custom step temp pxx pyy pzz vol
+
+
+# Write initial configuration
+write_data nw.si.init
+
+reset_timestep 0
+velocity all set 0.0 0.0 0.0
+
+# Define temperature and pressure computes
+compute my_temp all temp
+compute p all pressure my_temp
+
+#fix printp1 all print 100 "$(step) $(c_p[3])" file pzz_output.txt screen no
+
+# Relaxation with zero pressure in z-direction
+#fix relaxz all box/relax z 0.0 vmax 0.001
+minimize 1e-8 1e-8 100000 10000
+#unfix relaxz
+
+# Write relaxed configuration
+write_data nw.relax_0
+
+# Set initial velocity
+velocity all create ${temp_obj} ${random_seed} dist gaussian mom yes rot yes
+
+variable sz equal pzz
+#print "1.00 ${sz}" append all_stress_eam.dat
+
+fix 22 all nvt temp ${temp_obj} ${temp_obj} ${nvt_thermo_freq} tchain ${num_chains} tloop ${num_mtk}
+label loop
+variable n loop 10000
+        #fix 22 all nvt temp ${temp_obj} ${temp_obj} ${nvt_thermo_freq} tchain ${num_chains} tloop ${num_mtk}
+        run 10000
+        #unfix 22
+        
+        variable low_lim equal 0.0
+        variable upp_lim equal (1+0.0001*$(pzz))*$(lz)
+        #fix 33 all deform 1 z final ${low_lim} ${upp_lim} units box
+        #unfix 33
+
+        change_box all z final ${low_lim} ${upp_lim} remap units box
+
+        variable p_stretch_0 equal 1+0.0001*$(pzz)
+        variable abs_sz equal abs(v_sz)
+
+        #print "${p_stretch_0} ${sz}" append all_stress_eam.dat
+        
+        #dump 44 all custom 20 nvt_loop/nw.* id type x y z 
+        #undump 44
+        #run 20
+
+        next n
+        #if "$(n>10000)" then "jump SELF break"
+        if "${abs_sz} < 10.0" then "jump SELF break"
+        jump SELF loop
+label break
+
+
+#prnt "1.00 ${sz}" append all_stress_eam.dat
+#print "$(lz) ${sz}" append all_stress_eam.dat
+
+
+# Write relaxed configuration
+write_data nw.relax_300
+
+# Dump settings
+compute pe_atom all pe/atom
+compute ke_atom all ke/atom
+compute stress_atom all stress/atom NULL
+dump 1 all custom ${dump_freq} outs/nw.* id type x y z vx vy vz fx fy fz c_pe_atom c_stress_atom[1] c_stress_atom[2] c_stress_atom[3] c_stress_atom[4] c_stress_atom[5] c_stress_atom[6]
+
+# NVT ensemble (loading)
+reset_timestep 0
+#fix 2 all nvt temp ${temp_obj} ${temp_obj} ${nvt_thermo_freq} tchain ${num_chains} tloop ${num_mtk}
+#compute p all pressure thermo_temp
+
+#run 0
+#variable sz equal pzz
+print "1.00 ${sz}" append all_stress_eam.dat
+
+variable length equal $(lz)
+#print "$(lz) ${sz}" append all_stress_eam.dat
+# Loading loop -- 1% increments
+label loader
+variable b loop 60000
+variable low_lim equal 0.0
+variable upp_lim equal (1+0.00001*$b)*${length}
+fix 4 all deform 1 z final ${low_lim} ${upp_lim} x volume y volume units box
+variable p_stretch equal 1+0.00001*$b
+print "${p_stretch} ${sz}" append all_stress_eam.dat
+run 20
+next b
+jump SELF loader
+label break
